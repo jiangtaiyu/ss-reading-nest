@@ -149,6 +149,18 @@ describe("NovelReader", () => {
     expect(props.onAskSelection).not.toHaveBeenCalled();
   });
 
+  it("captures a native mobile text selection after selectionchange", async () => {
+    const props = makeProps();
+    render(<NovelReader {...props} />);
+    const textNode = screen.getByText("第一句话。第二句话。").firstChild!;
+    selectText("第二句话。", textNode);
+
+    document.dispatchEvent(new Event("selectionchange"));
+
+    expect(await screen.findByRole("button", { name: "写想法" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "直接提问" })).toBeInTheDocument();
+  });
+
   it("asks about only the selected sentence", async () => {
     const props = makeProps();
     const { container } = render(<NovelReader {...props} />);
