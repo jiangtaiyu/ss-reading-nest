@@ -595,6 +595,23 @@ export function App() {
     }
   }
 
+  async function expandLibrary() {
+    const homeState: ReaderWidgetState = {
+      screen: "home",
+      immersive: true,
+      collapsed: false
+    };
+    // Some mobile hosts remount the widget while switching display modes. Save
+    // the shelf route before requesting fullscreen so that remount cannot land
+    // on an empty transient view.
+    saveReaderWidgetState(homeState);
+    const supported = await requestReaderFullscreen();
+    if (!supported) {
+      saveReaderWidgetState({ ...homeState, immersive: false });
+      setToast("无法展开书房，请重试。");
+    }
+  }
+
   function storeSyncJob(job: ReadingSyncJob) {
     syncJobRef.current = job;
     setSyncJob(job);
@@ -1941,7 +1958,7 @@ export function App() {
           }}
           onReimport={prepareReimport}
           onManage={(item) => void openBookManagement(item)}
-          onExpand={() => void requestReaderFullscreen()}
+          onExpand={() => void expandLibrary()}
         />
       ) : null}
       {screen === "cover" && selectedBook ? (
