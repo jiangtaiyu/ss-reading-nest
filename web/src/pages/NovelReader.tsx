@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   ArrowRight,
@@ -89,6 +89,7 @@ export function NovelReader(props: {
   const swipe = useHorizontalPaging(previous, next);
   const scrollRef = useRef<HTMLElement>(null);
   const articleRef = useRef<HTMLElement>(null);
+  const selectionCaptureTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = props.initialScrollTop;
@@ -124,7 +125,7 @@ export function NovelReader(props: {
     window.getSelection()?.removeAllRanges?.();
   }
 
-  function captureSelection() {
+  const captureSelection = useCallback(() => {
     const selection = window.getSelection();
     const text = selection?.toString().replace(/\s+/g, " ").trim() ?? "";
     if (!text) return;
@@ -139,7 +140,28 @@ export function NovelReader(props: {
     setSelected(text);
     setSelectionMode(null);
     setDraft(existing?.note ?? "");
-  }
+  }, [currentQuotes]);
+
+  const scheduleSelectionCapture = useCallback((delay = 120) => {
+    if (selectionCaptureTimerRef.current !== null) {
+      window.clearTimeout(selectionCaptureTimerRef.current);
+    }
+    selectionCaptureTimerRef.current = window.setTimeout(() => {
+      selectionCaptureTimerRef.current = null;
+      captureSelection();
+    }, delay);
+  }, [captureSelection]);
+
+  useEffect(() => {
+    const handleSelectionChange = () => scheduleSelectionCapture(160);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      if (selectionCaptureTimerRef.current !== null) {
+        window.clearTimeout(selectionCaptureTimerRef.current);
+      }
+    };
+  }, [scheduleSelectionCapture]);
 
   function openComposer(mode: Exclude<SelectionMode, null>, quote?: Quote) {
     if (quote) {
@@ -311,7 +333,7 @@ export function NovelReader(props: {
             onMouseUp={captureSelection}
             onTouchEnd={(event) => {
               swipe.onTouchEnd(event);
-              window.setTimeout(captureSelection, 0);
+              scheduleSelectionCapture(180);
             }}
           >
           <article ref={articleRef} className="novel-paper">
