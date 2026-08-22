@@ -53,6 +53,29 @@ describe("useReadingHostLayout", () => {
     expect(result.current.revision).toBeGreaterThan(revision);
   });
 
+  it("reacts to the current ChatGPT openai:set_globals display-mode event", () => {
+    const { result } = renderHook(() => useReadingHostLayout());
+    const revision = result.current.revision;
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("openai:set_globals", {
+          detail: {
+            globals: {
+              displayMode: "fullscreen",
+              maxHeight: 860,
+              safeArea: { top: 12, right: 8, bottom: 20, left: 8 }
+            }
+          }
+        })
+      );
+    });
+
+    expect(result.current.displayMode).toBe("fullscreen");
+    expect(result.current.revision).toBeGreaterThan(revision);
+    expect(document.documentElement.style.getPropertyValue("--safe-bottom")).toBe("20px");
+  });
+
   it("applies host safe-area insets to the reading CSS variables", () => {
     renderHook(() => useReadingHostLayout());
 

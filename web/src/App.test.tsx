@@ -1870,7 +1870,8 @@ describe("App", () => {
       screen: "novel",
       sessionId,
       positionIndex: 3,
-      scrollTop: 120
+      scrollTop: 120,
+      collapsed: true
     };
     const setWidgetState = vi.fn((next: ReaderWidgetState) => {
       widgetState = next;
@@ -1894,6 +1895,8 @@ describe("App", () => {
     render(<App />);
 
     expect(await screen.findByText("第三段。")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "收起" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("main", { name: "已收起的小说阅读器" })).not.toBeInTheDocument();
     expect(setWidgetState).not.toHaveBeenCalledWith(expect.objectContaining({ screen: "home" }));
 
     fireEvent.click(screen.getByRole("button", { name: "全屏阅读" }));

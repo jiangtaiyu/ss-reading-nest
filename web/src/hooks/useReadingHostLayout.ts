@@ -6,10 +6,32 @@ import {
 
 export type ReaderLayout = "wide" | "compact";
 
+function initialHostContext(): ReadingHostContext {
+  const openai = window.openai;
+  const legacy = openai?.hostContext ?? {};
+  const safeArea = openai?.safeArea;
+  return {
+    ...legacy,
+    displayMode: openai?.displayMode ?? legacy.displayMode,
+    containerDimensions: {
+      ...legacy.containerDimensions,
+      ...(typeof openai?.maxHeight === "number" ? { maxHeight: openai.maxHeight } : {})
+    },
+    ...(safeArea
+      ? {
+          safeAreaInsets: {
+            top: safeArea.top ?? 0,
+            right: safeArea.right ?? 0,
+            bottom: safeArea.bottom ?? 0,
+            left: safeArea.left ?? 0
+          }
+        }
+      : {})
+  };
+}
+
 export function useReadingHostLayout() {
-  const [context, setContext] = useState<ReadingHostContext>(
-    () => window.openai?.hostContext ?? {}
-  );
+  const [context, setContext] = useState<ReadingHostContext>(initialHostContext);
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight

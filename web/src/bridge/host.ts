@@ -211,21 +211,35 @@ export async function askChatGpt(
   if (bridgeError) throw bridgeError;
 }
 
-export async function requestReaderPip(): Promise<boolean> {
+async function requestReaderDisplayMode(
+  mode: "inline" | "pip" | "fullscreen"
+): Promise<boolean> {
+  const env = detectHostEnvironment();
+  if (env === "chatgpt-app-bridge") {
+    try {
+      const bridge = connectApp();
+      if (bridge && (await isConnectedApp(bridge))) {
+        const result = await bridge.requestDisplayMode({ mode });
+        if (result.mode === mode) return true;
+      }
+    } catch {
+      // Fall through to ChatGPT's compatibility alias when the standard bridge
+      // is present but this host version cannot switch modes through it.
+    }
+  }
   try {
     if (window.openai?.requestDisplayMode) {
-      await window.openai.requestDisplayMode({ mode: "pip" });
+      await window.openai.requestDisplayMode({ mode });
       return true;
-    }
-    const bridge = connectApp();
-    if (bridge && (await isConnectedApp(bridge))) {
-      const result = await bridge.requestDisplayMode({ mode: "pip" });
-      return result.mode === "pip";
     }
   } catch {
     return false;
   }
   return false;
+}
+
+export async function requestReaderPip(): Promise<boolean> {
+  return requestReaderDisplayMode("pip");
 }
 
 export async function updateModelContext(context: Record<string, unknown>): Promise<boolean> {
@@ -242,37 +256,11 @@ export async function updateModelContext(context: Record<string, unknown>): Prom
 }
 
 export async function requestReaderFullscreen(): Promise<boolean> {
-  try {
-    if (window.openai?.requestDisplayMode) {
-      await window.openai.requestDisplayMode({ mode: "fullscreen" });
-      return true;
-    }
-    const bridge = connectApp();
-    if (bridge && (await isConnectedApp(bridge))) {
-      const result = await bridge.requestDisplayMode({ mode: "fullscreen" });
-      return result.mode === "fullscreen";
-    }
-  } catch {
-    return false;
-  }
-  return false;
+  return requestReaderDisplayMode("fullscreen");
 }
 
 export async function requestReaderInline(): Promise<boolean> {
-  try {
-    if (window.openai?.requestDisplayMode) {
-      await window.openai.requestDisplayMode({ mode: "inline" });
-      return true;
-    }
-    const bridge = connectApp();
-    if (bridge && (await isConnectedApp(bridge))) {
-      const result = await bridge.requestDisplayMode({ mode: "inline" });
-      return result.mode === "inline";
-    }
-  } catch {
-    return false;
-  }
-  return false;
+  return requestReaderDisplayMode("inline");
 }
 
 export function saveReaderWidgetState(state: ReaderWidgetState) {
@@ -372,9 +360,35 @@ function findPrivateBookshelf(
 export function subscribeHostContext(
   listener: (context: ReadingHostContext) => void
 ): () => void {
+  const globalsListener = (event: Event) => {
+    const globals = (event as CustomEvent<{ globals?: Record<string, unknown> }>).detail?.globals;
+    if (!globals) return;
+    const displayMode = globals.displayMode;
+    const maxHeight = globals.maxHeight;
+    const safeArea = globals.safeArea;
+    listener({
+      ...(displayMode === "inline" || displayMode === "pip" || displayMode === "fullscreen"
+        ? { displayMode }
+        : {}),
+      ...(typeof maxHeight === "number"
+        ? { containerDimensions: { maxHeight } }
+        : {}),
+      ...(safeArea && typeof safeArea === "object"
+        ? {
+            safeAreaInsets: {
+              top: Number((safeArea as Record<string, unknown>).top ?? 0),
+              right: Number((safeArea as Record<string, unknown>).right ?? 0),
+              bottom: Number((safeArea as Record<string, unknown>).bottom ?? 0),
+              left: Number((safeArea as Record<string, unknown>).left ?? 0)
+            }
+          }
+        : {})
+    });
+  };
   const legacyListener = (event: Event) => {
     listener((event as CustomEvent<ReadingHostContext>).detail ?? {});
   };
+  window.addEventListener("openai:set_globals", globalsListener);
   window.addEventListener("openai:host-context-changed", legacyListener);
 
   const bridge = connectApp();
@@ -389,6 +403,7 @@ export function subscribeHostContext(
   }
 
   return () => {
+    window.removeEventListener("openai:set_globals", globalsListener);
     window.removeEventListener("openai:host-context-changed", legacyListener);
     bridge?.removeEventListener("hostcontextchanged", bridgeListener);
   };
