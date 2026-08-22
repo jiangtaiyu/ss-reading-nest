@@ -183,6 +183,10 @@ describe("host bridge", () => {
   });
 
   it("starts the direct ChatGPT fullscreen request in the user gesture call stack", async () => {
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: window
+    });
     const requestDisplayMode = vi.fn().mockResolvedValue(undefined);
     if (window.openai) window.openai.requestDisplayMode = requestDisplayMode;
     const { requestReaderFullscreen } = await import("./host.js");
@@ -195,6 +199,10 @@ describe("host bridge", () => {
   });
 
   it("starts the direct ChatGPT floating reader request in the user gesture call stack", async () => {
+    Object.defineProperty(window, "parent", {
+      configurable: true,
+      value: window
+    });
     const requestDisplayMode = vi.fn().mockResolvedValue(undefined);
     if (window.openai) window.openai.requestDisplayMode = requestDisplayMode;
     const { requestReaderPip } = await import("./host.js");

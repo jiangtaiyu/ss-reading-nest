@@ -191,9 +191,10 @@ export function App() {
     restoredWidgetState?.immersive ?? false
   );
   const [librarySkin, setLibrarySkin] = useState<LibrarySkin>(readLibrarySkin);
-  const [readerCollapsed, setReaderCollapsed] = useState(
-    restoredWidgetState?.collapsed ?? false
-  );
+  // Do not restore the old compact-reader state. Shrinking an inline mobile
+  // widget can leave the host iframe permanently clipped, so v85 retires that
+  // control and always reopens the reader at its usable height.
+  const [readerCollapsed, setReaderCollapsed] = useState(false);
   const [syncRequestInFlight, setSyncRequestInFlight] = useState(false);
   const [managedBook, setManagedBook] = useState<BookshelfItem | null>(null);
   const [syncChoiceOpen, setSyncChoiceOpen] = useState(false);
@@ -2077,8 +2078,6 @@ export function App() {
           onRequestPip={() => void requestReaderPip()}
           collapsed={readerCollapsed}
           onExpand={() => setReaderCollapsed(false)}
-          canCollapse={hostLayout.layout === "compact" && hostLayout.displayMode === "inline"}
-          onCollapse={() => setReaderCollapsed(true)}
           initialScrollTop={readerScrollTop}
           onScrollPosition={setReaderScrollTop}
           {...readerProps}
