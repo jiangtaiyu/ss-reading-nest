@@ -1106,6 +1106,8 @@ html[data-display-mode="fullscreen"] .app {
   font-size: 18px;
   line-height: 1.95;
   text-wrap: pretty;
+  -webkit-user-select: text;
+  user-select: text;
 }
 .novel-paper p { margin-bottom: 1.22em; }
 .novel-paper mark,
