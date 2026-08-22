@@ -31,6 +31,35 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "书架" })).toBeInTheDocument();
   });
 
+  it("persists the home route before expanding the bookshelf", async () => {
+    const requestDisplayMode = vi.fn().mockResolvedValue(undefined);
+    const setWidgetState = vi.fn();
+    Object.defineProperty(window, "openai", {
+      configurable: true,
+      value: {
+        toolOutput: { recentSessions: [] },
+        callTool: vi.fn().mockResolvedValue({ structuredContent: {} }),
+        requestDisplayMode,
+        setWidgetState
+      }
+    });
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "展开书房" }));
+
+    await waitFor(() => {
+      expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "fullscreen" });
+    });
+    expect(setWidgetState).toHaveBeenCalledWith({
+      screen: "home",
+      immersive: true,
+      collapsed: false
+    });
+    expect(setWidgetState.mock.invocationCallOrder[0]).toBeLessThan(
+      requestDisplayMode.mock.invocationCallOrder[0]!
+    );
+  });
+
   it("recovers the novel shelf when the opening result arrives late", async () => {
     const bundle = bookshelfBundle("late-output-book", "后来找回的小说", 2, "light_chat", manifest("late-output", "a"));
     const callTool = vi.fn(async (name: string) => {
