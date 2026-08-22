@@ -89,10 +89,15 @@ export function NovelReader(props: {
   const swipe = useHorizontalPaging(previous, next);
   const scrollRef = useRef<HTMLElement>(null);
   const articleRef = useRef<HTMLElement>(null);
+  const previousPageIndexRef = useRef(index);
   const selectionCaptureTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = props.initialScrollTop;
+    const pageChanged = previousPageIndexRef.current !== index;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = pageChanged ? 0 : props.initialScrollTop;
+    }
+    previousPageIndexRef.current = index;
   }, [index, props.layoutRevision]);
 
   useEffect(() => {
