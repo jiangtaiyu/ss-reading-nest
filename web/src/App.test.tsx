@@ -2077,7 +2077,9 @@ describe("App", () => {
     const text = await screen.findByText("上下文前句。只问这一句。上下文后句。");
     vi.spyOn(window, "getSelection").mockReturnValue({
       toString: () => "只问这一句。",
-      anchorNode: text.firstChild,
+      // Containment is covered in NovelReader tests. Keep this integration test
+      // independent of asynchronous DOM-node replacement in the full App.
+      anchorNode: null,
       removeAllRanges: vi.fn()
     } as unknown as Selection);
     fireEvent.mouseUp(text);
