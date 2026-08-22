@@ -77,6 +77,29 @@ describe("NovelReader", () => {
     expect(scroll.scrollTop).toBe(96);
   });
 
+  it("starts each newly selected page at the top", () => {
+    const props = { ...makeProps(), initialScrollTop: 480 };
+    const { container, rerender } = render(<NovelReader {...props} />);
+    const scroll = container.querySelector<HTMLElement>(".reader-scroll")!;
+    expect(scroll.scrollTop).toBe(480);
+
+    rerender(
+      <NovelReader
+        {...props}
+        session={{
+          ...props.session,
+          userCurrentPosition: {
+            ...props.session.userCurrentPosition,
+            index: 2,
+            label: "第 2 段"
+          }
+        }}
+      />
+    );
+
+    expect(scroll.scrollTop).toBe(0);
+  });
+
   it("opens the lightweight navigation drawer and jumps to a valid page", () => {
     const props = {
       ...makeProps(),
