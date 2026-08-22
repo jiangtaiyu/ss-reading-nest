@@ -37,6 +37,7 @@ import { BookManagementSheet } from "./components/BookManagementSheet.js";
 import { SyncChoiceSheet } from "./components/SyncChoiceSheet.js";
 import { SyncProgressSheet } from "./components/SyncProgressSheet.js";
 import { readEpub } from "./features/import/read-epub.js";
+import { readTextFile, type TextFileEncoding } from "./features/import/read-text-file.js";
 import { splitNovelText, splitNovelTextForVersion } from "./features/novel/split-text.js";
 import { CloudSourceClient } from "./features/source-cloud/cloud-source-client.js";
 import type { CloudUploadDiagnostics } from "./features/source-cloud/cloud-source-client.js";
@@ -89,6 +90,7 @@ type ImportProgress = {
   fileName?: string;
   fileSize?: number;
   decodedTextLength?: number;
+  detectedEncoding?: TextFileEncoding;
   sourceEndpointBasePresent?: boolean;
   uploadStatus?: string;
   sourceId?: string;
@@ -763,9 +765,10 @@ export function App() {
       message: "正在读取文件"
     });
     try {
+      const decodedText = isEpub ? null : await readTextFile(file);
       const parsed = isEpub
         ? await readEpub(file)
-        : { title: "", text: await readTextFile(file) };
+        : { title: "", text: decodedText!.text };
       const result = parsed.text;
       if (!result.trim()) {
         setSourceText("");
@@ -788,16 +791,23 @@ export function App() {
         ...current,
         stage: "ready",
         decodedTextLength: result.length,
+        detectedEncoding: decodedText?.encoding,
         sourceEndpointBasePresent: Boolean(sourceEndpointBase),
         screen,
         message: file.size > LARGE_NOVEL_TEXTAREA_PREVIEW_BYTES ? "大文件已读取，准备分段" : "文档已读取"
       }));
-      setToast(isEpub ? "EPUB 已导入并提取正文。" : "文档已导入，你仍然可以继续编辑正文。");
+      setToast(
+        isEpub
+          ? "EPUB 已导入并提取正文。"
+          : decodedText?.encoding === "gb18030"
+            ? "已识别 GBK / GB18030 编码并正确导入，你仍然可以继续编辑正文。"
+            : "文档已导入，你仍然可以继续编辑正文。"
+      );
     } catch {
       setToast(
         isEpub
           ? "EPUB 读取失败；它可能带有加密或特殊压缩，可以先转成 TXT。"
-          : "读取失败，请确认文件是 UTF-8 文本，或改用复制粘贴。"
+          : "读取失败，请确认文件是 UTF-8、GBK 或 GB18030 文本，或改用复制粘贴。"
       );
       setImportProgress((current) => ({
         ...current,
@@ -1065,7 +1075,7 @@ export function App() {
         return;
       }
       if (startUnavailable) {
-        setToast("已进入本地阅读模式；星星陪读与云端同步需在 ChatGPT 内使用。");
+        setToast("已进入本地阅读模式；K陪读与云端同步需在 ChatGPT 内使用。");
       } else if (cloudUploadFailed) {
         setToast(`云端同步失败：${cloudUploadError}；已保留本设备正文。`);
       }
@@ -1250,7 +1260,7 @@ export function App() {
       });
       setToast(
         mode === "context"
-          ? `已同步${sessionBundle.session.userCurrentPosition.label}，星星正在看这里。`
+          ? `已同步${sessionBundle.session.userCurrentPosition.label}，K正在看这里。`
           : "已用兼容模式发送当前页。"
       );
     } finally {
@@ -1310,7 +1320,7 @@ export function App() {
         sendMessage: askChatGpt,
         scrollToBottom: true
       });
-      setToast("这一页和你的想法已经发给星星。你可以继续往下读。");
+      setToast("这一页和你的想法已经发给K。你可以继续往下读。");
     } finally {
       setSyncRequestInFlight(false);
     }
@@ -1358,7 +1368,7 @@ export function App() {
         sendMessage: askChatGpt,
         scrollToBottom: true
       });
-      setToast("只把这句和你的问题发给了星星。");
+      setToast("只把这句和你的问题发给了K。");
     } finally {
       setSyncRequestInFlight(false);
     }
@@ -1465,7 +1475,7 @@ export function App() {
       if (confirmed.mode === "live_reading") {
         clearSyncJobState();
         await cache.removeSyncJob(syncJob.sessionId).catch(() => undefined);
-        setToast(`已确认星星读到第 ${batch.rangeEnd} 页。`);
+        setToast(`已确认K读到第 ${batch.rangeEnd} 页。`);
         return;
       }
       const formalMode = sessionBundle.session.sessionPreferences.readingCommentMode;
@@ -1496,7 +1506,7 @@ export function App() {
       });
       clearSyncJobState();
       await cache.removeSyncJob(syncJob.sessionId).catch(() => undefined);
-      setToast("星星追上你啦，可以正式陪读了。");
+      setToast("K追上你啦，可以正式陪读了。");
       return;
     }
     storeSyncJob(confirmed);
@@ -2009,7 +2019,7 @@ export function App() {
             </div>
           <label className="remember-row"><input type="checkbox" checked={remembered} onChange={(e) => setRemembered(e.target.checked)} />在本设备记住这本书</label>
           <p className="privacy-note">
-            正文会保存到你的私人云端，供手机和电脑续读；不会自动发给 ChatGPT。只有点“问星星”或“和星星一起看这页”时，选中句子或当前页才会发送。
+            正文会保存到你的私人云端，供手机和电脑续读；不会自动发给 ChatGPT。只有点“问K”或“和K一起看这页”时，选中句子或当前页才会发送。
           </p>
           <button
             className="action-primary wide-button"
@@ -2150,6 +2160,7 @@ function ImportProgressPanel({ progress }: { progress: ImportProgress }) {
       {progress.fileName ? <p>文件：{progress.fileName}</p> : null}
       {typeof progress.fileSize === "number" ? <p>File.size：{formatBytes(progress.fileSize)}</p> : null}
       {typeof progress.decodedTextLength === "number" ? <p>decodedTextLength：{progress.decodedTextLength}</p> : null}
+      {progress.detectedEncoding ? <p>文本编码：{formatTextEncoding(progress.detectedEncoding)}</p> : null}
       <p>sourceEndpointBase：{progress.sourceEndpointBasePresent ? "present" : "missing"}</p>
       {progress.uploadStatus ? <p>upload：{progress.uploadStatus}</p> : null}
       {progress.sourceId ? <p>sourceId：{progress.sourceId}</p> : null}
@@ -2185,6 +2196,11 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function formatTextEncoding(encoding: TextFileEncoding) {
+  if (encoding === "gb18030") return "GBK / GB18030";
+  return encoding.toUpperCase();
+}
+
 function nextFrame() {
   return new Promise<void>((resolve) => {
     if (typeof window === "undefined") return resolve();
@@ -2205,18 +2221,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
         reject(error);
       }
     );
-  });
-}
-
-function readTextFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () =>
-      typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new Error("Text file did not decode as a string"));
-    reader.onerror = () => reject(reader.error ?? new Error("Text file read failed"));
-    reader.readAsText(file, "UTF-8");
   });
 }
 

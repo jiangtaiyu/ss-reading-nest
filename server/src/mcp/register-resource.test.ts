@@ -40,10 +40,11 @@ describe("registerReadingResource", () => {
       registerAppResource.mock.calls[1 + READING_NEST_LEGACY_URIS.length];
 
     expect(READING_NEST_URI).toBe(
-      "ui://ss-reading-nest/app-v82-native-inline.html"
+      "ui://ss-reading-nest/app-v83-hk-inline.html"
     );
     expect(READING_NEST_LEGACY_URIS).toEqual(
       expect.arrayContaining([
+        "ui://ss-reading-nest/app-v82-native-inline.html",
         "ui://ss-reading-nest/app-v76-ios-remount.html",
         "ui://ss-reading-nest/app-v69-mobile-cover-recovery.html",
         "ui://ss-reading-nest/app-v68-pip-client-compat.html",
@@ -61,7 +62,7 @@ describe("registerReadingResource", () => {
     expect(registerAppResource).toHaveBeenCalledTimes(
       1 + READING_NEST_LEGACY_URIS.length + 1 + READING_NEST_COMPATIBILITY_LEGACY_URIS.length
     );
-    expect(uri).toBe("ui://ss-reading-nest/app-v82-native-inline.html");
+    expect(uri).toBe("ui://ss-reading-nest/app-v83-hk-inline.html");
     expect(legacyUri).toBe(READING_NEST_LEGACY_URIS[0]);
     expect(descriptor._meta.ui.csp.connectDomains).toContain(
       "https://reading-nest.example.workers.dev"
@@ -72,7 +73,7 @@ describe("registerReadingResource", () => {
 
     const loaded = await loader();
     expect(loaded.contents[0].uri).toBe(
-      "ui://ss-reading-nest/app-v82-native-inline.html"
+      "ui://ss-reading-nest/app-v83-hk-inline.html"
     );
     expect(loaded.contents[0].mimeType).toBe("text/html;profile=mcp-app");
     expect(loaded.contents[0]._meta.ui.csp.connectDomains).toContain(
@@ -104,7 +105,7 @@ describe("registerReadingResource", () => {
     expect(probeUri).toBe("ui://ss-reading-nest/app-compat-v3.html");
     expect(probeDescriptor._meta.ui.prefersBorder).toBe(true);
     const probe = await probeLoader();
-    expect(probe.contents[0].text).toContain("冰冰和星星的小书房 App 组件已显示");
+    expect(probe.contents[0].text).toContain("H × K 的小书房 App 组件已显示");
     expect(probe.contents[0]._meta.ui.csp.connectDomains).toContain(
       "http://localhost:8787"
     );
